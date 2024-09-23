@@ -35,31 +35,46 @@ static char** split_by_sep(char* str, char* sep)
 * Where "n" is the amount of data lines where each of data lines are
 * comma-separated. The file is returned as a InputFile struct.
 */
-InputFile* read_file(char* filename)
-{
-  // Read the file
-  FILE* file_pointer = fopen(filename, "r");
+InputFile* read_file(char* filename) {
+    // Abrir el archivo
+    FILE* file_pointer = fopen(filename, "r");
+    if (!file_pointer) {
+        perror("Error al abrir el archivo");
+        return NULL;
+    }
 
-  // Declare a buffer and read the first line
-  char buffer[BUFFER_SIZE];
-  fgets(buffer, BUFFER_SIZE, file_pointer);
+    // Leer la primera línea para obtener la cantidad de procesos
+    char buffer[BUFFER_SIZE];
+    if (!fgets(buffer, BUFFER_SIZE, file_pointer)) {
+        perror("Error al leer el archivo");
+        fclose(file_pointer);
+        return NULL;
+    }
 
-  // Define the struct and prepare its attributes
-  InputFile* input_file = malloc(sizeof(InputFile));
-  input_file->lines = calloc(atoi(buffer), sizeof(char**));
-  input_file->len = atoi(buffer);
+    // Definir la estructura y preparar sus atributos
+    InputFile* input_file = malloc(sizeof(InputFile));
+    input_file->len = atoi(buffer);
+    input_file->lines = malloc(input_file->len * sizeof(char**));
 
-  // Parse each line
-  int index = 0;
-  while (fgets(buffer, BUFFER_SIZE, file_pointer)) {
-    buffer[strcspn(buffer, "\n")] = 0;
-    buffer[strcspn(buffer, "\r")] = 0;
-    input_file->lines[index++] = split_by_sep(buffer, " ");
-  }
+    // Comprobar que la memoria se haya asignado correctamente
+    if (!input_file->lines) {
+        perror("Error al asignar memoria");
+        fclose(file_pointer);
+        free(input_file);
+        return NULL;
+    }
 
-  // Close the file and return the struct
-  fclose(file_pointer);
-  return input_file;
+    // Parsear cada línea
+    int index = 0;
+    while (index < input_file->len && fgets(buffer, BUFFER_SIZE, file_pointer)) {
+        buffer[strcspn(buffer, "\n")] = 0; // Quitar el salto de línea
+        buffer[strcspn(buffer, "\r")] = 0; // Quitar el retorno de carro
+        input_file->lines[index++] = split_by_sep(buffer, " ");
+    }
+
+    // Cerrar el archivo y retornar la estructura
+    fclose(file_pointer);
+    return input_file;
 }
 
 /*

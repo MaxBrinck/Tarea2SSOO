@@ -13,9 +13,9 @@ typedef struct Queue {
 } Queue;
 
 // Prototipos de las funciones
-Queue* create_queue();  // Asegúrate de tener esta declaración
-void initializeQueue(Queue* q);
-void enqueue(Queue *queue, Process *proceso);
-Process* dequeue(Queue* q);
-int isEmpty(Queue* q);
-void freeQueue(Queue* q);
+Queue* create_queue();  // Crear nueva cola
+void initializeQueue(Queue* q);  // Inicializar la cola
+void enqueue(Queue *queue, Process *proceso);  // Agregar proceso a la cola
+Process* dequeue(Queue* q);  // Sacar proceso de la cola
+int isEmpty(Queue* q);  // Verificar si la cola está vacía
+void freeQueue(Queue* q);  // Liberar la memoria de la cola

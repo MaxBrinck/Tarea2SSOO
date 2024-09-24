@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
+// Función para crear un nuevo proceso
 Process* create_process(char **data) {
     Process *p = (Process *)malloc(sizeof(Process));
     if (p == NULL) {
@@ -26,6 +27,12 @@ Process* create_process(char **data) {
     p->Numero_rafagas = atoi(data[4]);
     p->Tiempo_espera = atoi(data[5]);
     p->Deadline = atoi(data[6]);
+    p->Estado = READY;  // Inicializar el estado
 
     return p;
+}
+
+// Función para actualizar el estado de un proceso
+void update_process_state(Process *p, EstadoProceso new_state) {
+    p->Estado = new_state;
 }

@@ -20,4 +20,9 @@ typedef struct {
     int T_INICIO;      // Tiempo de inicio del proceso
     int response_time; // Tiempo de respuesta del proceso
 } Process;
-#endif // PROCESS_H 
+
+// Prototipos de las funciones
+Process* create_process(char **data);  // Crear proceso
+void update_process_state(Process *p, EstadoProceso new_state);  // Actualizar estado del proceso
+
+#endif // PROCESS_H

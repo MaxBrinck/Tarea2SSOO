@@ -61,8 +61,9 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Process **p
             Process *current = dequeue(high_priority_queue);
             if (current == NULL) continue;
 
-            if (current->response_time == -1) {
-                current->response_time = tiempo_global; // Asignar tiempo de respuesta
+            // Asignar tiempo de respuesta
+            if (process_stats[current->pid - 1].response_time == -1) {
+                process_stats[current->pid - 1].response_time = tiempo_global - current->T_INICIO;
             }
 
             printf("Ejecutando proceso (PID: %d, Nombre: %s) - Estado: RUNNING en t=%d\n", current->pid, current->Nombre, tiempo_global);
@@ -74,7 +75,8 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Process **p
             if (current->Tiempo_ejecucion == 0) {
                 // Proceso terminado
                 process_stats[current->pid - 1].turnaround_time = tiempo_global - current->T_INICIO;
-                process_stats[current->pid - 1].waiting_time = tiempo_global - current->T_INICIO - (current->Numero_rafagas - 1) * current->Tiempo_espera;
+                process_stats[current->pid - 1].waiting_time = process_stats[current->pid - 1].turnaround_time - (current->Numero_rafagas - 1) * current->Tiempo_espera;
+                
                 printf("Proceso (PID: %d, Nombre: %s) terminado en t=%d\n", current->pid, current->Nombre, tiempo_global);
                 free(current);
             } else {
@@ -97,7 +99,8 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Process **p
             if (current->Tiempo_ejecucion == 0) {
                 // Proceso terminado
                 process_stats[current->pid - 1].turnaround_time = tiempo_global - current->T_INICIO;
-                process_stats[current->pid - 1].waiting_time = tiempo_global - current->T_INICIO - (current->Numero_rafagas - 1) * current->Tiempo_espera;
+                process_stats[current->pid - 1].waiting_time = process_stats[current->pid - 1].turnaround_time - (current->Numero_rafagas - 1) * current->Tiempo_espera;
+                
                 printf("Proceso (PID: %d, Nombre: %s) terminado en t=%d\n", current->pid, current->Nombre, tiempo_global);
                 free(current);
             } else {
@@ -138,8 +141,12 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Process **p
     free(process_stats);
 }
 
-
 int main(int argc, char const *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Uso: %s <nombre_del_archivo>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
     char *file_name = (char *)argv[1];
     InputFile *input_file = read_file(file_name);
 

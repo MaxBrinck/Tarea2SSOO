@@ -25,6 +25,8 @@ void enqueue(Queue *queue, Process *proceso) {
         // Manejo de error si no se puede asignar memoria
         return;
     }
+    
+    update_process_state(proceso, READY); // Actualizar el estado a READY
     new_node->process = proceso;
     new_node->next = NULL;
 
@@ -56,6 +58,7 @@ Process* dequeue(Queue* q) {
     }
 
     q->size--; // Disminuir el tamaño de la cola
+    update_process_state(process, RUNNING); // Actualizar estado a RUNNING
     free(temp); // Liberar el nodo eliminado
     return process; // Devolver el proceso
 }
@@ -68,8 +71,9 @@ int isEmpty(Queue* q) {
 // Función para liberar la memoria de la cola
 void freeQueue(Queue* q) {
     while (!isEmpty(q)) {
-        dequeue(q); // Eliminar todos los nodos
+        Process* process = dequeue(q); // Obtener el proceso
+        free(process->Nombre);         // Liberar el nombre del proceso
+        free(process);                 // Liberar el proceso en sí
     }
     free(q); // Liberar la estructura de la cola
 }
- 

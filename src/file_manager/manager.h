@@ -14,3 +14,14 @@ typedef struct inputfile {
 // Declare functions
 InputFile* read_file(char* filename);
 void input_file_destroy(InputFile* input_file);
+
+
+
+
+
+
+
+
+
+
+

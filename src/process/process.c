@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
+#include "../queue/queue.h"
 // Función para crear un nuevo proceso
 Process* create_process(char **data) {
     Process *p = (Process *)malloc(sizeof(Process));
@@ -28,11 +28,240 @@ Process* create_process(char **data) {
     p->Tiempo_espera = atoi(data[5]);
     p->Deadline = atoi(data[6]);
     p->Estado = READY;  // Inicializar el estado
+    p->tlcpu = -1;       // Inicializar tlcpu a 0 o al tiempo actual si lo necesitas
 
     return p;
 }
 
-// Función para actualizar el estado de un proceso
-void update_process_state(Process *p, EstadoProceso new_state) {
-    p->Estado = new_state;
+
+
+
+
+ 
+ // Función para recorrer la cola y realizar una acción con cada proceso
+void wait_ready(Queue* queue, int tiempo_global) {
+    Node* current = queue->front; // Comenzar desde el frente de la cola
+           
+    // Recorrer mientras haya nodos
+    while (current != NULL) {
+    // Aquí puedes realizar cualquier acción con el proceso
+        Process* proceso = current->process;
+ 
+        if (proceso->Estado == WAITING && proceso->Tiempo_espera + proceso->tlcpu >=  tiempo_global && proceso->tlcpu != -1){
+            proceso->Estado == READY;
+        }
+               
+            // Mover al siguiente nodo
+        current = current->next;
+    }
 }
+
+void first_in(Queue* queue, int tiempo_global) {
+    Node* current = queue->front; // Comenzar desde el frente de la cola
+    // Recorrer mientras haya nodos
+    while (current != NULL) {
+    // Aquí puedes realizar cualquier acción con el proceso
+        Process* proceso = current->process;
+        if (proceso->Estado == WAITING && proceso->T_INICIO >= tiempo_global && proceso->tlcpu == 1){
+            proceso->Estado == READY;
+            proceso->response_time = tiempo_global;
+        }
+               
+            // Mover al siguiente nodo
+        current = current->next;
+    }
+}
+
+
+void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiempo_global){
+    //Evaluar si no hay nada running y entregarle la cpu al proceso con mejor prioridad.
+    Node* current_l = low_priority_queue->front;
+    Node* current_h = high_priority_queue->front;
+    int ocupado = 0;
+    Process *prioritario;
+    int prioridad = -100000000;
+    int prioridad_h;
+    int prioridad_l;
+    int asignado = 0;
+    //Hacemos una revision para ver si hay algun proceso corriendo
+    while (current_l != NULL){
+        Process* proceso_l = current_l->process;
+        if (proceso_l->Estado == RUNNING){
+            ocupado = 1;
+            return;
+        }
+    }
+    while (current_h != NULL){
+        Process* proceso_h = current_h->process;
+        if (proceso_h->Estado == RUNNING){
+            ocupado = 1;
+            return;
+        }
+    }
+
+    
+    Node* current_l1 = low_priority_queue->front;
+    Node* current_h1 = high_priority_queue->front;
+    //Si no hay procesos corriendo
+    if(ocupado == 0){
+        while (current_h1 != NULL){
+            Process* proceso_h = current_h1->process;
+            if (proceso_h->Estado == READY){
+                ocupado = 1;
+                prioridad_h = (tiempo_global - proceso_h->tlcpu) - proceso_h->Deadline;
+                if (prioridad_h < prioridad){
+                    prioritario = proceso_h;
+                    prioridad = prioridad_h;
+                }
+                else if (prioridad == prioridad_h){
+                    if (prioritario->pid > proceso_h->pid){
+                        prioritario = proceso_h;
+                        prioridad = prioridad_h;
+                    }
+                    
+                }
+            }
+        }
+    }
+    if (ocupado == 0){
+        while (current_l1 != NULL){
+            Process* proceso_l = current_l1->process;
+            if (proceso_l->Estado == READY){
+                ocupado = 1;
+                prioridad_l = (tiempo_global - proceso_l->tlcpu) - proceso_l->Deadline;
+                if (prioridad_l < prioridad){
+                    prioritario = proceso_l;
+                    prioridad = prioridad_l;
+                }
+                else if (prioridad == prioridad_l){
+                    if (prioritario->pid > proceso_l->pid){
+                        prioritario = proceso_l;
+                        prioridad = prioridad_l;
+                    }
+                }
+            }
+        }
+    }
+
+    prioritario->Estado = RUNNING;
+}
+
+
+
+
+
+void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Queue* high_priority_queue,int tiempo_global, int quantum_high, int quantum_low){
+    Node* current = queue->front;
+    while (current != NULL){
+        Process* proceso = current->process;
+        if (proceso->Estado == RUNNING){
+            if (queue->quantum_ejecucion == 0){
+                //Lo que hay que hacer si se termina el quantum
+                if (proceso->T_pendiente == 0){
+                    //se termina el quantum pero terminaste la rafaga actual
+
+                    proceso->rafagas_completas+= 1; //Si no tiene tiempo pendiente se completa una rafaga
+                    if (proceso->rafagas_completas == proceso->Numero_rafagas){
+                        //No queda quantum, terminaste rafaga actual y rafagas totales
+
+                        proceso->Estado == FINISHED; //si completo sus rafagas pasa terminar
+                        enqueue(final, proceso);
+                        dequeue(queue, proceso);
+                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
+                    }
+                    else {
+                        //No queda quantum, terminaste rafaga actual, no totales
+                        proceso->rafagas_completas+= 1;
+                        proceso->Estado = WAITING;
+                        if (queue->identificador == 1) {
+                            enqueue(low_priority_queue, proceso);
+                            dequeue(queue, proceso);
+                        }
+                    }
+                    proceso->T_pendiente == proceso->Tiempo_ejecucion;
+                    //Nose si hay que hacer algo mas cuando terminas una rafaga pero aun quedan algunas pendientes
+                    }
+                else {
+                    //Cuando no has terminado la rafaga y se te acaba el quantum
+                    if (queue->identificador == 1) {
+                        enqueue(low_priority_queue, proceso);
+                        dequeue(queue, proceso);
+                        proceso->interrupciones +=1;
+                    }
+                    //aca habria un else de si es low pero no pasa nada xd
+   
+                }           
+            if (queue->identificador == 1) {
+                queue->quantum_ejecucion = quantum_high;
+                }
+            else{
+                queue->quantum_ejecucion = quantum_low;
+                }    
+            }
+            else{
+                //No se acabó el quantum
+                if (proceso->T_pendiente == 0){
+                    //No se acaba el quantum pero si terminaste la rafaga
+
+                    proceso->rafagas_completas+= 1; //Si no tiene tiempo pendiente se completa una rafaga
+                    if (proceso->rafagas_completas == proceso->Numero_rafagas){
+                        //Queda quantum, terminaste rafaga actual y rafagas totales
+                        proceso->Estado == FINISHED; //si completo sus rafagas pasa terminar
+                        enqueue(final, proceso);
+                        dequeue(queue, proceso);
+                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
+                    }
+                    else {
+                        //Queda quantum, no terminaste las rafagas totales pero si la actual
+                        proceso->Estado = WAITING;
+                        if (queue->identificador== 1) {
+                            enqueue(low_priority_queue, proceso);
+                            dequeue(queue, proceso);
+    
+                        }
+                    }
+                    proceso->T_pendiente == proceso->Tiempo_ejecucion;
+                    //Nose si hay que hacer algo mas cuando terminas una rafaga pero aun quedan algunas pendientes
+                    }
+                else {
+                    //Queda quantum y no terminaste la rafaga actual ni las totales
+                    // no pasa nati
+                    
+                }
+
+
+
+            }
+
+        queue->quantum_ejecucion-=1; //En cada iteracion reducimos 1 el quantum de la ejecucion
+        proceso->T_pendiente-=1; //Decrementamos en 1 su tiempo pendiente
+        break;
+        }
+        else{
+            //proceso no esta running
+        }
+    }
+}
+
+void low_to_high(Queue* low_priority_queue, Queue* high_priority_queue, int tiempo_global){
+
+    //funcion para mandar un proceso de low a high si es que 2*deadline < Tiempo_global - tlcpu
+
+    Node* current = low_priority_queue->front; // Comenzar desde el frente de la cola
+           
+    // Recorrer mientras haya nodos
+    while (current != NULL) {
+    // Aquí puedes realizar cualquier acción con el proceso
+        Process *proceso = current->process;
+        int formula = 2*proceso->Deadline;
+        if (formula < tiempo_global - proceso->tlcpu){;
+            enqueue(high_priority_queue, proceso);
+            dequeue(low_priority_queue, proceso);
+        }
+               
+            // Mover al siguiente nodo
+        current = current->next;
+    }
+}
+       
+

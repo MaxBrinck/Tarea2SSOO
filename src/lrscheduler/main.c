@@ -5,140 +5,33 @@
 #include "../queue/queue.h"
 #include "../file_manager/manager.h"
 
-typedef struct {
-    char *Nombre;
-    int pid;
-    int interrupciones;
-    int turnaround_time;
-    int response_time;
-    int waiting_time;
-    int suma_deadline;
-} ProcessStats;
 
-void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Process **procesos, int num_procesos, int quantum_high, int quantum_low) {
-    int tiempo_global = 0; // Tiempo global de la simulación
+void  schedule(Queue *high_priority_queue, Queue *low_priority_queue, Queue *inicial, int quantum_high, int quantum_low, Queue *final){
+    int tiempo_global = 0;
+	
+	while (1){
 
-    // Array para almacenar las estadísticas de cada proceso
-    ProcessStats *process_stats = malloc(num_procesos * sizeof(ProcessStats));
-    if (!process_stats) {
-        perror("Error al asignar memoria para process_stats");
-        return;
-    }
+        //Primero se debe actualizar aquellos procesos que han finalizado su tiempo de espera
+        wait_ready(low_priority_queue, tiempo_global);
+        wait_ready(high_priority_queue, tiempo_global);
 
-    for (int i = 0; i < num_procesos; i++) {
-        process_stats[i].Nombre = procesos[i]->Nombre;
-        process_stats[i].pid = procesos[i]->pid;
-        process_stats[i].interrupciones = 0;
-        process_stats[i].turnaround_time = 0;
-        process_stats[i].response_time = -1; // -1 indica que aún no ha sido asignado
-        process_stats[i].waiting_time = 0;
-        process_stats[i].suma_deadline = 0;
-    }
+        //Ahora se debe actualizar los estados de los procesos en estado running
+        Actualizar_runing(final, low_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
+        Actualizar_runing(final, high_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
+        
+        //Se revisa aquellos procesos que deben entrar por primera vez
+        first_in(inicial, tiempo_global);
+        
+        //Verificamos aquellos procesos que deben pasar de la cola low a la cola high
+        low_to_high(low_priority_queue, high_priority_queue, tiempo_global);
+        
+        //Si No hay procesos running se entrega la cpu a uno
+        all_ready(low_priority_queue, high_priority_queue, tiempo_global);
+        
 
-    while (1) {
-        // Actualizar procesos WAITING a READY si ha terminado su tiempo de espera
-        for (int i = 0; i < num_procesos; i++) {
-            if (procesos[i] != NULL && procesos[i]->Estado == WAITING && procesos[i]->Tiempo_espera <= tiempo_global) {
-                procesos[i]->Estado = READY;
-                enqueue(high_priority_queue, procesos[i]);
-                procesos[i] = NULL;
-            }
-        }
+    tiempo_global++;
+	}
 
-        // Encolar nuevos procesos
-        for (int i = 0; i < num_procesos; i++) {
-            if (procesos[i] != NULL && procesos[i]->T_INICIO <= tiempo_global) {
-                enqueue(high_priority_queue, procesos[i]);
-                procesos[i] = NULL;
-            }
-        }
-
-        // Si no hay procesos restantes, romper el ciclo
-        if (isEmpty(high_priority_queue) && isEmpty(low_priority_queue)) break;
-
-        // Procesar alta prioridad
-        if (!isEmpty(high_priority_queue)) {
-            Process *current = dequeue(high_priority_queue);
-            if (current == NULL) continue;
-
-            // Asignar tiempo de respuesta
-            if (process_stats[current->pid - 1].response_time == -1) {
-                process_stats[current->pid - 1].response_time = tiempo_global - current->T_INICIO;
-            }
-
-            printf("Ejecutando proceso (PID: %d, Nombre: %s) - Estado: RUNNING en t=%d\n", current->pid, current->Nombre, tiempo_global);
-
-            int tiempo_ejecucion = (current->Tiempo_ejecucion > quantum_high) ? quantum_high : current->Tiempo_ejecucion;
-            current->Tiempo_ejecucion -= tiempo_ejecucion;
-            tiempo_global += tiempo_ejecucion;
-
-            if (current->Tiempo_ejecucion == 0) {
-                // Proceso terminado
-                process_stats[current->pid - 1].turnaround_time = tiempo_global - current->T_INICIO;
-                process_stats[current->pid - 1].waiting_time = process_stats[current->pid - 1].turnaround_time - (current->Numero_rafagas - 1) * current->Tiempo_espera;
-                
-                printf("Proceso (PID: %d, Nombre: %s) terminado en t=%d\n", current->pid, current->Nombre, tiempo_global);
-                free(current);
-            } else {
-                // Pasar a la cola baja si se consume todo el quantum
-                current->Estado = READY;
-                enqueue(low_priority_queue, current);
-            }
-        }
-        // Procesar baja prioridad
-        else if (!isEmpty(low_priority_queue)) {
-            Process *current = dequeue(low_priority_queue);
-            if (current == NULL) continue;
-
-            printf("Ejecutando proceso (PID: %d, Nombre: %s) - Estado: RUNNING en t=%d\n", current->pid, current->Nombre, tiempo_global);
-
-            int tiempo_ejecucion = (current->Tiempo_ejecucion > quantum_low) ? quantum_low : current->Tiempo_ejecucion;
-            current->Tiempo_ejecucion -= tiempo_ejecucion;
-            tiempo_global += tiempo_ejecucion;
-
-            if (current->Tiempo_ejecucion == 0) {
-                // Proceso terminado
-                process_stats[current->pid - 1].turnaround_time = tiempo_global - current->T_INICIO;
-                process_stats[current->pid - 1].waiting_time = process_stats[current->pid - 1].turnaround_time - (current->Numero_rafagas - 1) * current->Tiempo_espera;
-                
-                printf("Proceso (PID: %d, Nombre: %s) terminado en t=%d\n", current->pid, current->Nombre, tiempo_global);
-                free(current);
-            } else {
-                // Verificar si sube a la cola alta
-                if (2 * current->Deadline < tiempo_global - current->T_INICIO) {
-                    current->Estado = READY;
-                    enqueue(high_priority_queue, current);
-                } else {
-                    current->Estado = READY;
-                    enqueue(low_priority_queue, current);
-                }
-            }
-        } else {
-            tiempo_global++;
-        }
-    }
-
-    // Escribir estadísticas en el archivo
-    FILE *output_file = fopen("output.txt", "w");
-    if (output_file == NULL) {
-        perror("No se pudo abrir el archivo de salida");
-        free(process_stats);
-        return;
-    }
-
-    for (int i = 0; i < num_procesos; i++) {
-        fprintf(output_file, "%s,%d,%d,%d,%d,%d,%d\n",
-                process_stats[i].Nombre,
-                process_stats[i].pid,
-                process_stats[i].interrupciones,
-                process_stats[i].turnaround_time,
-                process_stats[i].response_time,
-                process_stats[i].waiting_time,
-                process_stats[i].suma_deadline);
-    }
-
-    fclose(output_file);
-    free(process_stats);
 }
 
 int main(int argc, char const *argv[]) {
@@ -156,23 +49,30 @@ int main(int argc, char const *argv[]) {
 
     Queue *high_priority_queue = create_queue();
     Queue *low_priority_queue = create_queue();
+	Queue *final = create_queue();
+	Queue *inicial = create_queue();
 
-    int q = 2; // Definir un quantum base
-    int quantum_high = 2 * q;
-    int quantum_low = q;
+    int q = 2; // Definir un quantum 
+	int quantum_high = 2*q; //Definir un quantum para la cola de alta prioridad
+	int quantum_low = q; //Definir un quantum para la cola de baja prioridad
+    high_priority_queue->quantum_ejecucion = 2*q; //Inicializar el quantum de ejecucion
+	low_priority_queue->quantum_ejecucion = q; //Inicializar el quantum de ejecucion
+	high_priority_queue->identificador = 1; //Inicializar el identificador de la cola
+	low_priority_queue->identificador = 0; //Inicializar el identificador de la cola
 
-    Process **procesos = (Process **)malloc(input_file->len * sizeof(Process *));
+
+
+
+    
     
     for (int i = 0; i < input_file->len; ++i) {
         Process *proceso = (Process *)malloc(sizeof(Process));
-
         int pid = atoi(input_file->lines[i][1]);
         int tiempo_ejecucion = atoi(input_file->lines[i][3]);
         int numero_rafagas = atoi(input_file->lines[i][4]);
         int tiempo_espera = atoi(input_file->lines[i][5]);
         int deadline = atoi(input_file->lines[i][6]);
         int t_inicio = atoi(input_file->lines[i][2]);  // Agregar T_INICIO del archivo de entrada
-
         proceso->Nombre = (char *)malloc(strlen(input_file->lines[i][0]) + 1);
         strcpy(proceso->Nombre, input_file->lines[i][0]);
         proceso->pid = pid;
@@ -182,14 +82,26 @@ int main(int argc, char const *argv[]) {
         proceso->Tiempo_espera = tiempo_espera;
         proceso->Deadline = deadline;
         proceso->T_INICIO = t_inicio;
+        proceso->tlcpu = -1; // Inicializar tlcpu
+		proceso->rafagas_completas = 0;
+		proceso->T_pendiente = tiempo_ejecucion;
+		proceso->interrupciones = 0;
+		proceso->wainting_time = 0;
+        enqueue(inicial, proceso);
+		
 
-        procesos[i] = proceso; 
+		
+
     }
+    schedule(high_priority_queue, low_priority_queue, inicial, quantum_high, quantum_low, final);
 
-    schedule(high_priority_queue, low_priority_queue, procesos, input_file->len, quantum_high, quantum_low);
+    
 
     input_file_destroy(input_file);
-    free(procesos);
+	freeQueue(high_priority_queue);
+	freeQueue(low_priority_queue);
+	freeQueue(final);
+	freeQueue(inicial);
 
     return 0;
 }

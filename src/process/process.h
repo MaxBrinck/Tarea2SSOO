@@ -19,6 +19,15 @@ typedef struct {
     int Deadline;      // Deadline de ejecución
     int T_INICIO;      // Tiempo de inicio del proceso
     int response_time; // Tiempo de respuesta del proceso
+    int tlcpu;
+    int T_pendiente; //Tiempo pendiente de la rafaga actual
+    int rafagas_completas; //Numero de rafagas completadas
+    int interrupciones;
+    int wainting_time; //Tiempo de espera
+    int turnaround_time; //Tiempo de retorno
+
+
+
 } Process;
 
 // Prototipos de las funciones

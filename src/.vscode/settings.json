@@ -8,6 +8,10 @@
         "process.h": "c",
         "deque": "c",
         "vector": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "random": "c",
+        "stdlib.h": "c"
     }
 }

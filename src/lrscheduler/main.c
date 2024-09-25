@@ -76,15 +76,15 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Queue *inic
 	while (1){
 
         //Primero se debe actualizar aquellos procesos que han finalizado su tiempo de espera
-        wait_ready(low_priority_queue, tiempo_global);
         wait_ready(high_priority_queue, tiempo_global);
-
+        wait_ready(low_priority_queue, tiempo_global);
         //Ahora se debe actualizar los estados de los procesos en estado running
-        Actualizar_runing(final, low_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
+
         Actualizar_runing(final, high_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
+        Actualizar_runing(final, low_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
         
         //Se revisa aquellos procesos que deben entrar por primera vez
-        first_in(inicial, tiempo_global);
+        first_in(inicial, tiempo_global, high_priority_queue);
         
         //Verificamos aquellos procesos que deben pasar de la cola low a la cola high
         low_to_high(low_priority_queue, high_priority_queue, tiempo_global);
@@ -135,7 +135,7 @@ int main(int argc, char const *argv[]) {
     
     
 
-    int var = 0;
+    
     int q = 2; // Definir un quantum 
 	int quantum_high = 2*q; //Definir un quantum para la cola de alta prioridad
 	int quantum_low = q; //Definir un quantum para la cola de baja prioridad
@@ -187,10 +187,10 @@ int main(int argc, char const *argv[]) {
     generate_output_file(final, "output_file.txt");
 
     input_file_destroy(input_file);
-	freeQueue(high_priority_queue);
-	freeQueue(low_priority_queue);
 	freeQueue(final);
 	freeQueue(inicial);
+    freeQueue(high_priority_queue);
+    freeQueue(low_priority_queue);
     // Liberar recursos
 
     return 0;

@@ -107,19 +107,25 @@ int isEmpty(Queue* q) {
 }
 
 // Función para liberar la memoria de la cola
-void freeQueue(Queue* q) {
-    Node* current = q->front;
-    Node* next_node;
 
-    // Recorre la cola y libera cada nodo
+
+void freeQueue(Queue *queue) {
+    Node *current = queue->front;
     while (current != NULL) {
-        next_node = current->next;      // Guardar el siguiente nodo
-        free(current->process->Nombre); // Liberar el nombre del proceso
-        free(current->process);         // Liberar el proceso en sí
-        free(current);                  // Liberar el nodo actual
-        current = next_node;            // Avanzar al siguiente nodo
-    }
+        Node *next = current->next;
+        
+        // Liberar el nombre del proceso
+        if (current->process->Nombre != NULL) {
+            //free(current->process->Nombre);
+        }
 
-    // Liberar la estructura de la cola
-    free(q);
+        // Liberar el proceso en sí
+        free(current->process);
+
+        // Liberar el nodo de la cola
+        free(current);
+        
+        current = next;
+    }
+    free(queue);
 }

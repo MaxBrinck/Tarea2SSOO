@@ -25,6 +25,14 @@ typedef struct {
     int interrupciones;
     int wainting_time; //Tiempo de espera
     int turnaround_time; //Tiempo de retorno
+    int tiempo_pasado;
+    int q_h;
+    int q_l;
+    int q;
+    int tiempo_cpu;
+    int primero;
+    int p_ready; 
+
 
 
 

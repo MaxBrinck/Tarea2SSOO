@@ -58,7 +58,7 @@ void generate_output_file(Queue *final, const char *filename) {
             p->turnaround_time,          // Turnaround time
             p->response_time,            // Response time
             p->wainting_time,            // Waiting time
-            p->T_pendiente               // Suma de tiempos pasado deadline (esto es solo un ejemplo, debes adaptar este campo si es diferente)
+            p->tiempo_pasado               // 
         );
     }
 
@@ -91,6 +91,7 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Queue *inic
         
         //Si No hay procesos running se entrega la cpu a uno
         all_ready(low_priority_queue, high_priority_queue, tiempo_global);
+        
 
 
 
@@ -136,7 +137,7 @@ int main(int argc, char const *argv[]) {
     
 
     
-    int q = 2; // Definir un quantum 
+    int q = 3; // Definir un quantum 
 	int quantum_high = 2*q; //Definir un quantum para la cola de alta prioridad
 	int quantum_low = q; //Definir un quantum para la cola de baja prioridad
     high_priority_queue->quantum_ejecucion = 2*q; //Inicializar el quantum de ejecucion
@@ -169,6 +170,13 @@ int main(int argc, char const *argv[]) {
 		proceso->T_pendiente = tiempo_ejecucion;
 		proceso->interrupciones = 0;
 		proceso->wainting_time = 0;
+        proceso->tiempo_pasado = 0;
+        proceso->response_time = 0;
+        proceso->q_h = quantum_high;
+        proceso->q_l = quantum_low;
+        proceso->tiempo_cpu=0;
+        proceso->p_ready = 0;
+        proceso->primero = 0;
         enqueue(inicial, proceso);
 
 		
@@ -179,16 +187,15 @@ int main(int argc, char const *argv[]) {
     
 
     schedule(high_priority_queue, low_priority_queue, inicial, quantum_high, quantum_low, final);
+    printf("salio del schedule\n");
 
     
 
     
 
     generate_output_file(final, "output_file.txt");
-
     input_file_destroy(input_file);
 	freeQueue(final);
-	freeQueue(inicial);
     freeQueue(high_priority_queue);
     freeQueue(low_priority_queue);
     // Liberar recursos

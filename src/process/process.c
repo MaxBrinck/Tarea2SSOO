@@ -48,7 +48,7 @@ void wait_ready(Queue* queue, int tiempo_global) {
     // Aquí puedes realizar cualquier acción con el proceso
         Process* proceso = current->process;
  
-        if (proceso->Estado == WAITING && proceso->Tiempo_espera + proceso->tlcpu >=  tiempo_global && proceso->tlcpu != -1){
+        if (proceso->Estado == WAITING && proceso->Tiempo_espera + proceso->tlcpu <=  tiempo_global && proceso->tlcpu != -1){
             proceso->Estado = READY;
         }
                
@@ -70,7 +70,8 @@ void first_in(Queue* queue, int tiempo_global, Queue* high_priority_queue) {
             printf("Estado: %d, T_INICIO: %d, tlcpu: %d, tiempo_global: %d\n", proceso->Estado, proceso->T_INICIO, proceso->tlcpu, tiempo_global);
 
             proceso->Estado = READY;
-            proceso->response_time = tiempo_global;
+            proceso->response_time = tiempo_global - proceso->T_INICIO;
+            proceso->q_h = high_priority_queue->quantum_ejecucion;
             printf("Proceso cumple condicione para entrar\n");
             enqueue(high_priority_queue, proceso);
             printf("Proceso en high %d\n", high_priority_queue->front->process->pid);
@@ -156,6 +157,10 @@ void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiemp
 
     // Verificamos que prioritario no sea NULL antes de asignar el estado
     if (prioritario != NULL) {
+        if (prioritario->p_ready == 0){
+            prioritario->p_ready = 1;
+            prioritario->primero = tiempo_global;
+        }
         prioritario->Estado = RUNNING;
         printf("Proceso %d en estado RUNNING\n", prioritario->pid);
     }
@@ -167,6 +172,7 @@ void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiemp
 
 void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Queue* high_priority_queue,int tiempo_global, int quantum_high, int quantum_low){
     printf("cuantum high %d, cuantum low%d\n" , high_priority_queue->quantum_ejecucion, low_priority_queue->quantum_ejecucion);
+    
     //printf("act running\n");
     Node* current = queue->front;
     Node* siguiente = NULL;
@@ -174,16 +180,27 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
         siguiente = current->next;
         Process* proceso = current->process;
         printf("while de actualizar running\n");
-
-        if (proceso->Estado == RUNNING){    
+        
+        
+        if (proceso->Estado == RUNNING){
+            proceso->tiempo_cpu += 1;  
+            
             printf("pillo el running\n");
-            if (queue->quantum_ejecucion != 0){
-                queue->quantum_ejecucion-=1;
+            printf("IDENTIFICADOR COLA %d\n AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",queue->identificador);
+            if(queue->identificador == 1){
+                proceso->q_h-=1;
+                printf("El quantum que tiene ejecutandose en high es %d  jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj \n", proceso->q_h);
+                proceso->q = proceso->q_h;            
                 }
+            else {
+                proceso->q_l-=1;
+                printf("El quantum que tiene ejecutandose en low es %d  jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj \n", proceso->q_l);
+                proceso->q = proceso->q_l;
+            }
 
 
 
-            if (queue->quantum_ejecucion == 0){
+            if (proceso->q == 0){
                 proceso->tlcpu = tiempo_global;
                 if (proceso->T_pendiente !=0){
                     proceso->T_pendiente-=1;
@@ -195,6 +212,7 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                 if (proceso->T_pendiente == 0){
                     //se termina el quantum pero terminaste la rafaga actual
                     printf("Se termina el quantum pero terminaste la rafaga actual\n");
+                    printf("Numero de rafagas completas %d\n", proceso->rafagas_completas);
 
                     proceso->rafagas_completas+= 1; //Si no tiene tiempo pendiente se completa una rafaga
                     if (proceso->rafagas_completas == proceso->Numero_rafagas){
@@ -203,16 +221,22 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                         printf("NUMERO DE RAFAGAS COMPLETAS SIN QUANTUM\n");
                         proceso->tlcpu = tiempo_global;
                         proceso->Estado = FINISHED; //si completo sus rafagas pasa terminar
+                        if(proceso->Deadline>proceso->tiempo_cpu){
+                            proceso->tiempo_pasado = proceso->Deadline - proceso->tiempo_cpu;
+                        }
+                    
+                        proceso->wainting_time = tiempo_global - proceso->T_INICIO - proceso->Tiempo_ejecucion*proceso->Numero_rafagas;
+                        
+                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu);
                         enqueue(final, proceso);
                         dequeue(queue, proceso);
-                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
+                        proceso->turnaround_time = tiempo_global - proceso->primero;
                         proceso->T_pendiente = 0;
                         
                     }
                     else {
                         //No queda quantum, terminaste rafaga actual, no totales
                         printf("No queda quantum, termina rafaga actual y no totales\n");
-                        proceso->rafagas_completas+= 1;
                         proceso->Estado = WAITING;
                         proceso->tlcpu = tiempo_global;
                         if (queue->identificador == 1) {
@@ -236,19 +260,25 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                     if (queue->identificador == 1) {
                         enqueue(low_priority_queue, proceso);
                         dequeue(queue, proceso);
+                        
                     }
                     //aca habria un else de si es low pero no pasa nada xd
                 }
                 if (queue->identificador == 1) {
                         queue->quantum_ejecucion = quantum_high;
+                        proceso->q_h = queue->quantum_ejecucion;
+                        //nose si tengo que hace proceso->q = proceso->q_h
                     }
                     else{
                         queue->quantum_ejecucion = quantum_low;
+                        proceso->q_l = queue->quantum_ejecucion;
+                        //nose si tengo que hace proceso->q = proceso->q_l
                     }   
 
             }
             else{
                 if (proceso->T_pendiente !=0){
+                    printf("SE ESTA RESTANDO UN TIEMPO Y EL QUANTUM NO ES CERO\n");
                     proceso->T_pendiente-=1;
 
                 }
@@ -258,12 +288,19 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                     //No se acaba el quantum pero si terminaste la rafaga
                     printf("No se acaba quantum pero si termina rafaga\n");
 
-                    proceso->rafagas_completas+= 1; //Si no tiene tiempo pendiente se completa una rafaga
+                    proceso->rafagas_completas += 1; //Si no tiene tiempo pendiente se completa una rafaga
+                    printf("Numero de rafagas completas %d\n", proceso->rafagas_completas);
                     if (proceso->rafagas_completas == proceso->Numero_rafagas){
                         
                         //Queda quantum, terminaste rafaga actual y rafagas totales
                         printf("Queda quantum, termina rafaga actual y totales\n");
+                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu);
                         proceso->Estado = FINISHED; //si completo sus rafagas pasa terminar
+                        proceso->turnaround_time = tiempo_global - proceso->primero;
+                        proceso->wainting_time = tiempo_global - proceso->T_INICIO - proceso->Tiempo_ejecucion*proceso->Numero_rafagas;
+                        if(proceso->Deadline>proceso->tiempo_cpu){
+                            proceso->tiempo_pasado = proceso->Deadline - proceso->tiempo_cpu;
+                        }
                         enqueue(final, proceso);
                         dequeue(queue, proceso);
                         proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
@@ -273,32 +310,35 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                         //Queda quantum, no terminaste las rafagas totales pero si la actual
                         printf("Queda quantum, no termina rafaga totales pero si actual\n");
                         proceso->Estado = WAITING;
-                        if (queue->identificador== 1) {
+                        
+                        //if (queue->identificador== 1) {
 
-                            //Creo que lo podriamos borrar porque dice que al ceder cpu te mantienes en tu cola, no cambias a low
-                            enqueue(high_priority_queue, proceso);
-                            dequeue(queue, proceso);
+                            //Creo que lo podriamos borrar porque dice que al ceder cpu te mantienes en tu cola, no cambias a low                                                   COMENTE ESTO PORQUE SEGHUN YO ESTA MAL
+                            //enqueue(high_priority_queue, proceso);
+                            //dequeue(queue, proceso);
     
-                        }
+                        //}
                     }
                     proceso->T_pendiente = proceso->Tiempo_ejecucion;
                     proceso->tlcpu = tiempo_global;
                     //Nose si hay que hacer algo mas cuando terminas una rafaga pero aun quedan algunas pendientes
                     printf("Queda quantum pero si termina rafaga\n");
 
-                    if (queue->identificador == 1) {
-                        queue->quantum_ejecucion = quantum_high;
-                    }
-                    else{
-                        queue->quantum_ejecucion = quantum_low;
-                    }   
+                    //if (queue->identificador == 1) {
+                        //queue->quantum_ejecucion = quantum_high;
+                        //proceso->q_h = queue->quantum_ejecucion;
+                    //}
+                    //else{
+                        //queue->quantum_ejecucion = quantum_low;
+                        //proceso->q_l = queue->quantum_ejecucion;
+                    //}   
 
 
                     }
                 else {
                     printf("Queda quantum y no terminaste la rafaga actual ni las totales\n");
                     printf("tiempo pendiente de %d es %d\n", proceso->pid, proceso->T_pendiente);   
-                    
+                   
                     //Queda quantum y no terminaste la rafaga actual ni las totales
                     // no pasa nati
                     
@@ -343,6 +383,7 @@ void low_to_high(Queue* low_priority_queue, Queue* high_priority_queue, int tiem
             enqueue(high_priority_queue, proceso);
             printf("Proceso %d pasa a high\n", proceso->pid);
             dequeue(low_priority_queue, proceso);
+            printf("YENDO A HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIGH\n");
             
         }
                

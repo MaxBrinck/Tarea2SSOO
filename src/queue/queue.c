@@ -1,96 +1,104 @@
 #include "queue.h"
 #include "../process/process.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 // Función para crear una nueva cola
 Queue* create_queue() {
-    Queue* q = (Queue*)malloc(sizeof(Queue));
-    if (q != NULL) {
-        initializeQueue(q); // Inicializar la cola
-    }
-    return q;
-}
-
-// Función para inicializar una cola
-void initializeQueue(Queue* q) {
-    q->front = NULL;
-    q->rear = NULL;
-    q->size = 0;
-}
-
-// Función para agregar un proceso a la cola
-void enqueue(Queue *queue, Process *proceso) {
-    // Crear un nuevo nodo para el proceso
-    Node *new_node = (Node *)malloc(sizeof(Node));
-    if (new_node == NULL) {
-        // Manejo de error si no se puede asignar memoria
-        return;
+    Queue *queue = (Queue *)malloc(sizeof(Queue));
+    if (queue == NULL) {
+        fprintf(stderr, "Error al asignar memoria para la cola.\n");
+        exit(EXIT_FAILURE);
     }
     
+    queue->front = NULL;
+    queue->rear = NULL;
+    queue->size = 0;
+    queue->quantum_ejecucion = 0; // o cualquier valor inicial que desees
+    queue->identificador = -1; // o cualquier valor inicial que desees
+
+    return queue;
+}
+
+
+// Función para agregar un proceso a la cola
+// Función para agregar un proceso a la cola
+void enqueue(Queue *queue, Process *proceso) {
+    if (queue == NULL) {
+        fprintf(stderr, "Error: queue is NULL\n");
+        return;  // Manejo de error si la cola es NULL
+    }
+    
+    if (proceso == NULL) {
+        fprintf(stderr, "Error: process is NULL\n");
+        return;  // Manejo de error si el proceso es NULL
+    }
+
+    // Asignar memoria para un nuevo nodo
+    Node *new_node = (Node *)malloc(sizeof(Node));
+    if (new_node == NULL) {
+        fprintf(stderr, "Error allocating memory for new node\n");
+        return;
+    }
+
+    // Inicializar el nuevo nodo con el proceso y apuntar a NULL (no hay siguiente nodo)
     new_node->process = proceso;
     new_node->next = NULL;
 
-    // Si la cola está vacía, el nuevo nodo es el primero
+    // Si la cola está vacía (front es NULL), el nuevo nodo será tanto front como rear
     if (queue->front == NULL) {
         queue->front = new_node;
         queue->rear = new_node;
     } else {
-        // Agregar el nuevo nodo al final de la cola
+        // Si la cola ya tiene elementos, agregar el nuevo nodo al final
         queue->rear->next = new_node;
         queue->rear = new_node;
     }
 
-    queue->size++; // Aumentar el tamaño de la cola
+    // Incrementar el tamaño de la cola
+    queue->size++;
 }
 
 // Función para eliminar un proceso de la cola
 void dequeue(Queue *queue, Process *proceso) {
-    
-    // Verifica si la cola está vacía
-    if (queue->front == NULL) {
-        printf("Error: La cola está vacía.\n");
+    if (isEmpty(queue)) {
+        fprintf(stderr, "Error Dequeue: queue is empty\n");
         return;
     }
 
-    Node* temp = queue->front;
-    Node* prev = NULL;
+    Node *temp = queue->front;
+    Node *prev = NULL;
 
-    // Recorre la cola para encontrar el proceso
-    while (temp != NULL) {
-        if (temp->process == proceso) { // Si el proceso es encontrado
-            // Si es el primer nodo (frente de la cola)
-            if (prev == NULL) {
-                queue->front = temp->next;
-                // Si también es el último nodo
-                if (queue->front == NULL) {
-                    queue->rear = NULL;
-                }
-            } else {
-                // Saltar el nodo que contiene el proceso
-                prev->next = temp->next;
-                // Si era el último nodo, actualizar rear
-                if (temp == queue->rear) {
-                    queue->rear = prev;
-                }
-            }
-
-            // Disminuir el tamaño de la cola
-            queue->size--;
-
-            // Liberar la memoria del nodo y terminar
-            free(temp);
-            printf("Proceso con PID %d ha sido liberado.\n", proceso->pid);
-            return;
-        }
-
-        // Continuar al siguiente nodo
+    // Buscar el nodo con el proceso que queremos eliminar
+    while (temp != NULL && temp->process != proceso) {
         prev = temp;
         temp = temp->next;
     }
 
-    // Si se llega aquí, no se encontró el proceso
-    printf("Error: El proceso no se encontró en la cola.\n");
+    // Si no se encontró el proceso
+    if (temp == NULL) {
+        fprintf(stderr, "Error: process not found in the queue\n");
+        return;
+    }
+
+    // Si el proceso a eliminar está en el frente
+    if (temp == queue->front) {
+        queue->front = temp->next;
+    } else {
+        // Saltar el nodo que contiene el proceso
+        prev->next = temp->next;
+    }
+
+    // Si el nodo a eliminar es el último de la cola (rear)
+    if (temp == queue->rear) {
+        queue->rear = prev;
+    }
+
+    free(temp); // Liberar la memoria del nodo
+    queue->size--;
 }
+
+
 
 
 // Función para verificar si la cola está vacía

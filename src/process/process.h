@@ -12,7 +12,7 @@ typedef enum {
 typedef struct {
     char *Nombre;        // Nombre del proceso
     int pid;           // ID del proceso
-    int Estado;         // Estado del proceso (RUNNING, READY, WAITING, FINISHED)
+    EstadoProceso Estado;         // Estado del proceso (RUNNING, READY, WAITING, FINISHED)
     int Tiempo_ejecucion;    // Tiempo de ejecución por ráfaga
     int Numero_rafagas;   // Número de ráfagas
     int Tiempo_espera;       // Tiempo de espera para I/O entre ráfagas

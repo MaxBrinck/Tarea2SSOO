@@ -1,0 +1,1 @@
+Nombre del proceso,PID,Numero de interrupciones,Turnaround Time,Response Time,Waiting Time,Tiempos ejecucion pasado deadline

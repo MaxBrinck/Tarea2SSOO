@@ -70,7 +70,7 @@ void first_in(Queue* queue, int tiempo_global, Queue* high_priority_queue) {
             printf("Estado: %d, T_INICIO: %d, tlcpu: %d, tiempo_global: %d\n", proceso->Estado, proceso->T_INICIO, proceso->tlcpu, tiempo_global);
 
             proceso->Estado = READY;
-            proceso->response_time = tiempo_global - proceso->T_INICIO;
+
             proceso->q_h = high_priority_queue->quantum_ejecucion;
             printf("Proceso cumple condicione para entrar\n");
             enqueue(high_priority_queue, proceso);
@@ -79,6 +79,25 @@ void first_in(Queue* queue, int tiempo_global, Queue* high_priority_queue) {
                
             // Mover al siguiente nodo
         current = current->next;
+    }
+}
+
+void verificar_y_sumar_deadline(Process *proceso, int tiempo_global) {
+    int x;
+
+    if(proceso->tlcpu == -1){
+        x=0;
+    }
+    else{
+        x=proceso->tlcpu;
+    }
+    // Verifica si el proceso está pasado su deadline
+    int tiempo_pasado_deadline = (tiempo_global - x) - proceso->Deadline;
+    
+    // Si está ejecutando pasado su deadline
+    if (tiempo_pasado_deadline > 0) {
+        // Sumar el tiempo pasado al total
+        proceso->tiempo_pasado += tiempo_pasado_deadline;
     }
 }
 
@@ -119,7 +138,7 @@ void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiemp
             Process* proceso_h = current_h1->process;
             if (proceso_h->Estado == READY) {
                 prioridad_h = (tiempo_global - proceso_h->tlcpu) - proceso_h->Deadline;
-                if (prioritario == NULL || prioridad_h < prioridad) {
+                if (prioritario == NULL || prioridad_h > prioridad) {
                     prioritario = proceso_h; // Asignar proceso con mayor prioridad
                     prioridad = prioridad_h;
                     printf("%d", prioridad);
@@ -141,7 +160,7 @@ void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiemp
             Process* proceso_l = current_l1->process;
             if (proceso_l->Estado == READY) {
                 prioridad_l = (tiempo_global - proceso_l->tlcpu) - proceso_l->Deadline;
-                if (prioritario == NULL || prioridad_l < prioridad) {
+                if (prioritario == NULL || prioridad_l > prioridad) {
                     prioritario = proceso_l; // Asignar proceso con mayor prioridad
                     prioridad = prioridad_l;
                 } else if (prioridad == prioridad_l) {
@@ -159,9 +178,12 @@ void all_ready (Queue* low_priority_queue, Queue* high_priority_queue, int tiemp
     if (prioritario != NULL) {
         if (prioritario->p_ready == 0){
             prioritario->p_ready = 1;
+            printf("Proceso %d activa su primer ready en tiempo %d\n", prioritario->pid, tiempo_global);
             prioritario->primero = tiempo_global;
         }
+        verificar_y_sumar_deadline(prioritario, tiempo_global);
         prioritario->Estado = RUNNING;
+
         printf("Proceso %d en estado RUNNING\n", prioritario->pid);
     }
 }
@@ -183,7 +205,13 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
         
         
         if (proceso->Estado == RUNNING){
-            proceso->tiempo_cpu += 1;  
+            proceso->tiempo_cpu += 1;
+            if (proceso->p_ready == 1 && proceso->w_ready == 0) {
+                proceso->response_time =  proceso->primero-proceso->T_INICIO;
+                proceso->w_ready = 1;
+                printf("Proceso %d entra a la cpu por primera vez en tiempo %d\n", proceso->pid, tiempo_global);
+            };
+
             
             printf("pillo el running\n");
             printf("IDENTIFICADOR COLA %d\n AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",queue->identificador);
@@ -221,16 +249,15 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                         printf("NUMERO DE RAFAGAS COMPLETAS SIN QUANTUM\n");
                         proceso->tlcpu = tiempo_global;
                         proceso->Estado = FINISHED; //si completo sus rafagas pasa terminar
-                        if(proceso->Deadline>proceso->tiempo_cpu){
-                            proceso->tiempo_pasado = proceso->Deadline - proceso->tiempo_cpu;
-                        }
+                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
+                        proceso->tlcpu = tiempo_global;
                     
                         proceso->wainting_time = tiempo_global - proceso->T_INICIO - proceso->Tiempo_ejecucion*proceso->Numero_rafagas;
                         
-                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu);
+                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n con un primero de %d", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu, proceso->primero);
                         enqueue(final, proceso);
                         dequeue(queue, proceso);
-                        proceso->turnaround_time = tiempo_global - proceso->primero;
+                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
                         proceso->T_pendiente = 0;
                         
                     }
@@ -294,13 +321,12 @@ void Actualizar_runing(Queue* final, Queue* queue, Queue* low_priority_queue, Qu
                         
                         //Queda quantum, terminaste rafaga actual y rafagas totales
                         printf("Queda quantum, termina rafaga actual y totales\n");
-                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu);
+                        printf("proceso %d termino en tiempo global  %d con un tiempo de inicio de %d con un tclpu de %d\n con un tiempo en cpu de %d y un deadline de %d\n", proceso->pid, tiempo_global, proceso->T_INICIO, proceso->tlcpu, proceso->tiempo_cpu, proceso->Deadline);
                         proceso->Estado = FINISHED; //si completo sus rafagas pasa terminar
-                        proceso->turnaround_time = tiempo_global - proceso->primero;
+                        proceso->turnaround_time = tiempo_global - proceso->T_INICIO;
                         proceso->wainting_time = tiempo_global - proceso->T_INICIO - proceso->Tiempo_ejecucion*proceso->Numero_rafagas;
-                        if(proceso->Deadline>proceso->tiempo_cpu){
-                            proceso->tiempo_pasado = proceso->Deadline - proceso->tiempo_cpu;
-                        }
+                        proceso->tlcpu = tiempo_global;
+                
                         enqueue(final, proceso);
                         dequeue(queue, proceso);
                         proceso->turnaround_time = tiempo_global - proceso->T_INICIO;

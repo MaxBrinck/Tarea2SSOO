@@ -32,6 +32,7 @@ typedef struct {
     int tiempo_cpu;
     int primero;
     int p_ready; 
+    int w_ready;
 
 
 

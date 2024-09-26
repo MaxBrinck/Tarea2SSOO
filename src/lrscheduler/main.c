@@ -4,7 +4,6 @@
 #include "../process/process.h"
 #include "../queue/queue.h"
 #include "../file_manager/manager.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "../queue/queue.h"
@@ -14,28 +13,28 @@
 
 
 
-// Función para generar el archivo de salida
+
 void generate_output_file(Queue *final, const char *filename) {
-    // Abrir el archivo para escribir
+    
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         fprintf(stderr, "Error al abrir el archivo de salida.\n");
         return;
     }
 
-    // Crear un arreglo temporal para ordenar los procesos por PID
+    
     int num_processes = final->size;
     Process **processes = (Process **)malloc(num_processes * sizeof(Process *));
     Node *current = final->front;
     int index = 0;
 
-    // Copiar todos los procesos de la cola a un arreglo para poder ordenarlos
+   
     while (current != NULL) {
         processes[index++] = current->process;
         current = current->next;
     }
 
-    // Ordenar los procesos por PID de menor a mayor
+   
     for (int i = 0; i < num_processes - 1; ++i) {
         for (int j = i + 1; j < num_processes; ++j) {
             if (processes[i]->pid > processes[j]->pid) {
@@ -46,8 +45,8 @@ void generate_output_file(Queue *final, const char *filename) {
         }
     }
 
-    // Escribir los datos en el archivo
-    fprintf(file, "Nombre del proceso,PID,Numero de interrupciones,Turnaround Time,Response Time,Waiting Time,Tiempos ejecucion pasado deadline\n");
+    
+    
     
     for (int i = 0; i < num_processes; ++i) {
         Process *p = processes[i];
@@ -62,7 +61,7 @@ void generate_output_file(Queue *final, const char *filename) {
         );
     }
 
-    // Liberar el arreglo temporal y cerrar el archivo
+   
     free(processes);
     fclose(file);
 }
@@ -75,10 +74,10 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Queue *inic
 	
 	while (1){
 
-        //Primero se debe actualizar aquellos procesos que han finalizado su tiempo de espera
+        
         wait_ready(high_priority_queue, tiempo_global);
         wait_ready(low_priority_queue, tiempo_global);
-        //Ahora se debe actualizar los estados de los procesos en estado running
+        
 
         Actualizar_runing(final, high_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
         Actualizar_runing(final, low_priority_queue, low_priority_queue, high_priority_queue, tiempo_global, quantum_high, quantum_low);
@@ -116,12 +115,13 @@ void schedule(Queue *high_priority_queue, Queue *low_priority_queue, Queue *inic
 }
 
 int main(int argc, char const *argv[]) {
-    if (argc < 2) {
+    if (argc < 4) {
         fprintf(stderr, "Uso: %s <nombre_del_archivo>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     char *file_name = (char *)argv[1];
+    int q = atoi(argv[3]);
     InputFile *input_file = read_file(file_name);
 
     printf("Nombre archivo: %s\n", file_name);
@@ -136,14 +136,13 @@ int main(int argc, char const *argv[]) {
     
     
 
-    
-    int q = 3; // Definir un quantum 
+  
 	int quantum_high = 2*q; //Definir un quantum para la cola de alta prioridad
 	int quantum_low = q; //Definir un quantum para la cola de baja prioridad
     high_priority_queue->quantum_ejecucion = 2*q; //Inicializar el quantum de ejecucion
 	low_priority_queue->quantum_ejecucion = q; //Inicializar el quantum de ejecucion
 	high_priority_queue->identificador = 1; //Inicializar el identificador de la cola
-	low_priority_queue->identificador = 0; //Inicializar el identificador de la cola
+	low_priority_queue->identificador = 0; //Inicializar el identifador de la cola
     
 
     
@@ -177,6 +176,7 @@ int main(int argc, char const *argv[]) {
         proceso->tiempo_cpu=0;
         proceso->p_ready = 0;
         proceso->primero = 0;
+        proceso->w_ready = 0;
         enqueue(inicial, proceso);
 
 		
@@ -193,7 +193,7 @@ int main(int argc, char const *argv[]) {
 
     
 
-    generate_output_file(final, "output_file.txt");
+    generate_output_file(final, argv[2]);
     input_file_destroy(input_file);
 	freeQueue(final);
     freeQueue(high_priority_queue);
